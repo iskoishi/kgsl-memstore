@@ -1,0 +1,52 @@
+diff --git a/kgsl_iommu.c b/kgsl_iommu.c
+index 690ffe0..765ca1a 100644
+--- a/drivers/gpu/kgsl/kgsl_iommu.c
++++ b/drivers/gpu/kgsl/kgsl_iommu.c
+@@ -149,6 +149,27 @@ static bool kgsl_iommu_is_global_pt(struct kgsl_pagetable *pt)
+ 		pt->name == KGSL_MMU_GLOBAL_LPAC_PT);
+ }
+ 
++/*
++	 * The memstore holds kernel-trusted synchronization state: the
++	 * retire timestamps the kernel reads back to decide whether
++	 * submitted work has completed. It only needs to be addressable
++	 * from the GPU's own page table, never from a per-process user
++	 * page table. Without this, an ordinary GPU submission can write
++	 * a value the kernel then accepts as authoritative.
++	 *
++	 * See patches/README.md before applying: on a target without split
++	 * tables the user page table is also the one the GPU reads (PPT
++	 * mode), and skipping here would cut the GPU off from its own
++	 * timestamp storage.
++	 */
++static bool kgsl_iommu_skip_memstore(struct kgsl_device *device,
++		struct kgsl_global_memdesc *md,
++		struct kgsl_pagetable *pagetable)
++{
++	return ((&md->memdesc == device->memstore) &&
++		!kgsl_iommu_is_global_pt(pagetable));
++}
++
+ static void kgsl_iommu_unmap_globals(struct kgsl_mmu *mmu,
+ 		struct kgsl_pagetable *pagetable)
+ {
+@@ -160,6 +181,9 @@ static void kgsl_iommu_unmap_globals(struct kgsl_mmu *mmu,
+ 		return;
+ 
+ 	list_for_each_entry(md, &device->globals, node) {
++		if (kgsl_iommu_skip_memstore(device, md, pagetable))
++			continue;
++
+ 		if (md->memdesc.flags & KGSL_MEMFLAGS_SECURE)
+ 			continue;
+ 
+@@ -182,6 +206,9 @@ static void kgsl_iommu_map_globals(struct kgsl_mmu *mmu,
+ 	}
+ 
+ 	list_for_each_entry(md, &device->globals, node) {
++		if (kgsl_iommu_skip_memstore(device, md, pagetable))
++			continue;
++
+ 		if (md->memdesc.flags & KGSL_MEMFLAGS_SECURE)
+ 			continue;
+ 

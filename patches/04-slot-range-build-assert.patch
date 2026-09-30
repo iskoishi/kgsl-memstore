@@ -1,0 +1,55 @@
+diff --git a/kgsl.c b/kgsl.c
+index 16bd575..be6bad5 100644
+--- a/drivers/gpu/kgsl/kgsl.c
++++ b/drivers/gpu/kgsl/kgsl.c
+@@ -639,7 +639,7 @@ static int _kgsl_get_context_id(struct kgsl_device *device)
+ 	write_lock(&device->context_lock);
+ 	/* Allocate the slot but don't put a pointer in it yet */
+ 	id = idr_alloc(&device->context_idr, NULL, 1,
+-		KGSL_MEMSTORE_MAX, GFP_NOWAIT);
++		KGSL_GLOBAL_CTXT_ID, GFP_NOWAIT);
+ 	write_unlock(&device->context_lock);
+ 	idr_preload_end();
+ 
+diff --git a/kgsl.h b/kgsl.h
+index 7517c70..0794e1d 100644
+--- a/drivers/gpu/kgsl/kgsl.h
++++ b/drivers/gpu/kgsl/kgsl.h
+@@ -6,6 +6,7 @@
+ #ifndef __KGSL_H
+ #define __KGSL_H
+ 
++#include <linux/build_bug.h>
+ #include <uapi/linux/msm_kgsl.h>
+ #include <linux/cdev.h>
+ #include <linux/compat.h>
+@@ -42,10 +43,28 @@
+ #define KGSL_MEMSTORE_SIZE	((int)(PAGE_SIZE * 8))
+ #define KGSL_MEMSTORE_GLOBAL	(0)
+ #define KGSL_PRIORITY_MAX_RB_LEVELS 4
++#define KGSL_LPAC_RB_ID		KGSL_PRIORITY_MAX_RB_LEVELS
+ #define KGSL_MEMSTORE_MAX	(KGSL_MEMSTORE_SIZE / \
+-	sizeof(struct kgsl_devmemstore) - 1 - KGSL_PRIORITY_MAX_RB_LEVELS)
++	sizeof(struct kgsl_devmemstore) - 2 - KGSL_PRIORITY_MAX_RB_LEVELS)
+ #define KGSL_MAX_CONTEXTS_PER_PROC 200
+ 
++/* Last context id is reserved for the global context */
++#define KGSL_GLOBAL_CTXT_ID	(KGSL_MEMSTORE_MAX - 1)
++
++/*
++ * Context slots occupy [1, KGSL_GLOBAL_CTXT_ID]. Ringbuffer slots
++ * occupy [KGSL_MEMSTORE_MAX,
++ * KGSL_MEMSTORE_MAX + KGSL_LPAC_RB_ID] via MEMSTORE_RB_OFFSET(),
++ * which adds KGSL_MEMSTORE_MAX to the ringbuffer id. The two
++ * ranges must not overlap: an off-by-one here silently aliases a
++ * context's timestamps with a ringbuffer's, with no error
++ * anywhere.
++ */
++BUILD_BUG_ON(KGSL_GLOBAL_CTXT_ID >= KGSL_MEMSTORE_MAX);
++BUILD_BUG_ON(KGSL_MEMSTORE_MAX + KGSL_LPAC_RB_ID + 1 >
++		KGSL_MEMSTORE_SIZE / sizeof(struct kgsl_devmemstore));
++
++
+ #define MEMSTORE_RB_OFFSET(rb, field)	\
+ 	KGSL_MEMSTORE_OFFSET(((rb)->id + KGSL_MEMSTORE_MAX), field)
+ 

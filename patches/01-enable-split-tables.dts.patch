@@ -1,0 +1,8 @@
+--- a/vendor/.../soc/qcom/*.dtsi	(original board device-tree)
++++ b/vendor/.../soc/qcom/*.dtsi
+@@ -X,6 +X,7 @@
+  arm,smmu-kgsl@5940000 {
+      compatible = "qcom,smmu-v2";
+      qcom,use-3-lvl-tables;
++     qcom,split-tables;
+  };

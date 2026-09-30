@@ -1,0 +1,24 @@
+diff --git a/adreno.c b/adreno.c
+index 3a89803..ab0bf3b 100644
+--- a/drivers/gpu/kgsl/adreno.c
++++ b/drivers/gpu/kgsl/adreno.c
+@@ -1524,8 +1524,17 @@ int adreno_device_probe(struct platform_device *pdev,
+ 
+ 	/* Allocate the memstore for storing timestamps and other useful info */
+ 
+-	if (ADRENO_FEATURE(adreno_dev, ADRENO_APRIV))
+-		priv |= KGSL_MEMDESC_PRIVILEGED;
++	/*
++	 * Unconditional: the memstore holds kernel-trusted state, and gating
++	 * the flag on ADRENO_APRIV is what leaves it writable by an ordinary
++	 * GPU submission on every part that lacks APRIV (a5xx, a61x,
++	 * a630v2, a640, a680, gen6_3_26_0).
++	 *
++	 * UNVERIFIED: without APRIV the GPU's access is not privileged, so
++	 * this may stop the GPU writing its own timestamps. Confirm on
++	 * hardware before shipping.
++	 */
++	priv |= KGSL_MEMDESC_PRIVILEGED;
+ 
+ 	device->memstore = kgsl_allocate_global(device,
+ 		KGSL_MEMSTORE_SIZE, 0, 0, priv, "memstore");
