@@ -43,7 +43,7 @@
 | 验证状态 | 关键路径已实机验证 |
 | 设备 | Xiaomi sunstone（Redmi Note 12 系列）/ 高通 Blair SoC / Adreno 619v2 |
 | 内核 | `5.4.289-qgki-g3dd36cfe40b3` |
-| 报告日期 | 2026-10-1 |
+| 报告日期 | 2026-9-27 |
 
 ---
 
