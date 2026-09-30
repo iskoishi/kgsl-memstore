@@ -59,3 +59,7 @@ adb shell cat /data/local/tmp/pf.res
 The write target is `memstore[28008]`, a slot with no kernel consumer on the
 reference device. Nothing here writes to an active context's slot, and the program
 does not attempt any cross-process operation.
+
+## License
+
+The code in this directory (`poc/`) is original user-space code and is licensed under the MIT License, matching the root of this repository. It does not contain or link against any Linux kernel source code.
