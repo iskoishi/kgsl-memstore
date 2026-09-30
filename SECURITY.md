@@ -34,8 +34,7 @@ submission, and the kernel accepts the forged value as authoritative.
   `REPORTING-BUGS` at the root of the kernel tree. For Qualcomm parts, reports
   are routed through Qualcomm's product-security team. Use the channel that
   applies to the part you are reporting rather than this repository.
-- **[Author: replace this paragraph with a reachable contact before the first
-  publish.]**
+- ** 3849639991@qq.com **
 
 ## Attribution
 
