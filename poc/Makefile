@@ -1,30 +1,22 @@
-# PerfservicePrivilegePoC — Qualcomm perf HAL missing-authorization PoC
+# probe_fence - KGSL memstore trust-boundary PoC
 #
-# A single Java file. Build against an Android SDK platform, then package and sign.
+# Statically linked, raw syscalls, no libc. Build once, push anywhere.
 #
 # Prerequisites:
-#   ANDROID_HOME pointing at an Android SDK with a platform directory, e.g.:
-#     ${ANDROID_HOME}/platforms/android-34/android.jar
-#   a JDK with javac
-#   android build-tools (aapt2, zipalign, apksigner) or jarsigner for signing
-#
-# The PoC is compile-verified against android-34 with javac. It has not been
-# packaged or signed as part of this release; build and sign it yourself.
+#   an aarch64 musl cross compiler. Any of these works:
+#     aarch64-alpine-linux-musl-gcc        (alpine cross, used for the run on record)
+#     aarch64-linux-musl-gcc
+#     aarch64-none-linux-musl-gcc
+#   If your default aarch64 toolchain is glibc, set TARGET= and build with
+#   -static only if a static libc is available; otherwise the binary will not
+#   run on a stripped device image.
 
-ANDROID_HOME ?= ${HOME}/Android/Sdk
-PLATFORM     ?= android-34
-BOOTCLASS    := ${ANDROID_HOME}/platforms/${PLATFORM}/android.jar
+TARGET ?= aarch64-alpine-linux-musl-gcc
 
-OUT := out
-SRC := PerfservicePrivilegePoC.java
-
-javac-check:
-	@echo "== compile check against ${PLATFORM} =="
-	mkdir -p ${OUT}/classes
-	javac -source 11 -target 11 -classpath ${BOOTCLASS} -d ${OUT}/classes ${SRC}
-	@echo "ok"
+probe_fence: probe_fence.c
+	$(TARGET) -static -O2 -o $@ probe_fence.c
 
 clean:
-	rm -rf ${OUT}
+	rm -f probe_fence
 
-.PHONY: javac-check clean
+.PHONY: clean
