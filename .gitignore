@@ -1,2 +1,8 @@
-/probe_fence
-*.o
+*.class
+out/
+*.dex
+*.apk
+*.jar
+build/
+.idea/
+*.iml
