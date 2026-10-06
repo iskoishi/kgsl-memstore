@@ -29,14 +29,14 @@ submission, and the kernel accepts the forged value as authoritative.
 
 - Open an issue marked `security`, **not** a pull request. Do not attach
   exploit code to a public issue.
-- A contact for coordinated reporting is **not** published in this repository.
+- A contact for coordinated reporting is `3849639991 at qq.com`.
   For Linux kernel findings, the kernel's own process is documented in
   `REPORTING-BUGS` at the root of the kernel tree. For Qualcomm parts, reports
   are routed through Qualcomm's product-security team. Use the channel that
   applies to the part you are reporting rather than this repository.
-- 3849639991 at qq.com
 
 ## Attribution
 
 Please attribute findings from this repository as `kgsl-memstore`. The report in
 `README.md` is published under the license in `LICENSE`.
+
