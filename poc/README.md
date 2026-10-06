@@ -1,65 +1,65 @@
-# PoC: unprivileged app drives the root perf HAL
+# PoC
 
-## What it shows
+Self-contained verification of the mechanism described in `../README.md` (§5.3).
 
-A single Android application, with **no declared permissions**, makes the root-owned
-perf HAL write a privileged value into a *target process's* kernel node — while the
-application itself cannot even open that node.
+## What it proves
 
-This is the §5.2 verification of the main report.
+One executable, three contexts, one control arm. The result is the exit code.
 
-## Files
-
-| File | What it is |
+| Bit | Meaning |
 |---|---|
-| `PerfservicePrivilegePoC.java` | Standalone single-file PoC. Raw binder only — **no Qualcomm client library**, no `QPerformance.jar`. |
-| `Makefile` | `make javac-check` compiles against `android-34` and reports ok. |
+| `0x80` | control arm's `0x33` call succeeded |
+| `0x40` | experiment arm's `0x33` call succeeded |
+| `0x20` | forged value observed from the CPU side |
+| `0x10` | experiment arm's fence was signalled (POLLIN) |
+| `0x08` | forged value still resident after the fence call |
+| `0x01` | control arm's fence was signalled (should be 0) |
 
-## Verification status
-
-- **Compile-verified** against `android-34` with `javac`, clean output.
-- **The logic is the verified path**: the §5 results were produced with this sequence
-  embedded in a long-standing in-house probe.
-- **Not packaged or signed** as part of this release. Build and sign it yourself.
+The exit code is this bit field as an integer. **`0xF8` (248) is a clean run.**
+`0xF0` (240) is also acceptable: it means the post-fence readback raced the GPU and
+the forged value had already been overwritten, which does not change the conclusion.
+A set `0x01` would contradict the mechanism and has not been observed.
 
 ## Build
 
+The binary uses raw syscalls and no libc, so it can be pushed to a device and run
+without any runtime dependencies.
+
 ```sh
-export ANDROID_HOME=/path/to/sdk
-make javac-check
+aarch64-alpine-linux-musl-gcc -static -O2 -o probe_fence probe_fence.c
 ```
 
 ## Run
 
+Push it to a device with a working KGSL device node and execute it as an ordinary
+third-party app uid (no `su`, no `adb shell` shell uid required — the shell path is
+only used because it is convenient).
+
+Results are written to `/data/local/tmp/pf.res`; the exit code carries the same
+information as a bit field.
+
 ```sh
-adb install poc.apk
-
-# pick a victim pid: any process other than the PoC itself
-adb shell 'nohup sleep 300 >/dev/null 2>&1 & echo $!'        # -> VICTIM_PID
-adb shell 'cat /proc/VICTIM_PID/sched_boost'                  # -> 0   (baseline)
-
-adb shell am start -n com.example.perfpoc/.MainActivity --ei tgt VICTIM_PID
-
-adb shell 'cat /proc/VICTIM_PID/sched_boost'                  # -> 3   (after)
+adb push probe_fence /data/local/tmp/
+adb shell /data/local/tmp/probe_fence; echo "RC=$?"
+adb shell cat /data/local/tmp/pf.res
 ```
 
-All steps print to logcat tag `PERFPOC`.
+## Interpretation
 
-Read the victim node from a **shell-side** process — the calling application cannot
-open it.
+- Both arms return `-22` from the `0x33` call: `CONFIG_SYNC_FILE` was not compiled
+  in on this kernel. The very first `0x33` call is a safe way to probe for this,
+  because that path returns `-EINVAL` before dereferencing anything.
+- Experiment arm `POLLIN`, control arm timeout: the mechanism in the report holds.
+- Experiment arm timeout: this build's kernel does not accept the forged retire
+  value. Compare `__adreno_readtimestamp()` — the `KGSL_TIMESTAMP_RETIRED` branch
+  must read `memstore` directly rather than a software-maintained counter.
 
-## Two things that will make it look like it failed
+## Safety
 
-1. **Parcel argument order.** `BnPerfManager::onTransact` reads `duration` before the
-   array length. If `duration` is placed after, the server reads a small value and the
-   lock expires within milliseconds — the write happens and is undone before you look.
-2. **`--ei tgt` not passed.** Without an explicit victim pid the PoC has nothing to
-   target and stops at the baseline read.
+The write target is `memstore[28008]`, a slot with no kernel consumer on the
+reference device. Nothing here writes to an active context's slot, and the program
+does not attempt any cross-process operation.
 
-## What it does not do
+## License
 
-- It does not raise the CPU frequency floor (§5.3 of the main report); that request needs
-  the opcode and duration for that node, which is deliberately not scripted here.
-- It does not attempt the `perfUXEngine_events` path (§5.4), which is gated off on the
-  tested build.
-- It contains no heap work. Nothing here is oriented toward code execution.
+The code in this directory (`poc/`) is original user-space code and is licensed under the MIT License, matching the root of this repository. It does not contain or link against any Linux kernel source code.
